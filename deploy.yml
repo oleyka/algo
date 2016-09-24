@@ -12,7 +12,7 @@
 
 - name: Post-provisioning tasks
   hosts: vpn-host
-  gather_facts: false
+  gather_facts: true
   tags: algo
   become: true
   vars_files:

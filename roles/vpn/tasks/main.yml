@@ -1,8 +1,13 @@
-- name: Gather Facts
-  setup:
+#- name: Gather Facts
+#  setup:
 
 - name: Install StrongSwan
   apt: name=strongswan state=latest update_cache=yes
+  when: ansible_os_family != 'FreeBSD'
+
+- name: Install StrongSwan
+  pkgng: name=strongswan state=latest update_cache=yes
+  when: ansible_os_family == 'FreeBSD'
 
 - name: Enforcing ipsec with apparmor
   shell: aa-enforce "{{ item }}"
@@ -12,13 +17,18 @@
     - /usr/lib/ipsec/stroke
   notify:
     - restart apparmor
+  when: ansible_os_family != 'FreeBSD'
 
 - name: Enable services
-  service: name={{ item }} enabled=yes
+  service: name="{{ item }}" enabled=yes
   with_items:
     - apparmor
-    - strongswan
     - netfilter-persistent
+  when: ansible_os_family != 'FreeBSD'
+
+- name: Enable strongswan  # but we haven't configured it yet
+  service: name=strongswan enabled=yes
+  when: ansible_os_family != 'FreeBSD'
 
 - name: Configure iptables so IPSec traffic can traverse the tunnel
   iptables: table=nat chain=POSTROUTING source="{{ vpn_network }}" jump=MASQUERADE
@@ -29,8 +39,9 @@
 
 - name: Configure ip6tables so IPSec traffic can traverse the tunnel
   iptables: ip_version=ipv6 table=nat chain=POSTROUTING source="{{ vpn_network_ipv6 }}" jump=MASQUERADE
-  when: (security_enabled is not defined) or
-        (security_enabled is defined and security_enabled != "y")
+  when: vpn_network_ipv6 is defined and
+        ((security_enabled is undefined) or
+        (security_enabled is defined and security_enabled != "y"))
   notify:
     - save iptables
 
@@ -42,12 +53,20 @@
 
 - name: Ensure that the strongswan service directory exist
   file: path=/etc/systemd/system/strongswan.service.d/ state=directory mode=0755  owner=root group=root
+  when: ansible_os_family != 'FreeBSD'
 
 - name: Setup the cgroup limitations for the ipsec daemon
   template: src=100-CustomLimitations.conf.j2 dest=/etc/systemd/system/strongswan.service.d/100-CustomLimitations.conf
   notify:
     - daemon-reload
     - restart strongswan
+  when: ansible_os_family != 'FreeBSD'
+
+- name: Setup the cgroup limitations for the ipsec daemon
+  template: src=100-CustomLimitations.conf.j2 dest=/usr/local/etc/strongswan.d/100-CustomLimitations.conf
+  notify:
+    - daemon-reload
+  when: ansible_os_family == 'FreeBSD'
 
 - meta: flush_handlers
 
@@ -55,16 +74,42 @@
   template: src=strongswan.conf.j2 dest=/etc/strongswan.conf owner=root group=root mode=0644
   notify:
     - restart strongswan
+  when: ansible_os_family != 'FreeBSD'
 
 - name: Setup the ipsec.conf file from our template
   template: src=ipsec.conf.j2 dest=/etc/ipsec.conf owner=root group=root mode=0644
   notify:
     - restart strongswan
+  when: ansible_os_family != 'FreeBSD'
 
 - name: Setup the ipsec.secrets file
   template: src=ipsec.secrets.j2 dest=/etc/ipsec.secrets owner=strongswan group=root mode=0600
   notify:
     - restart strongswan
+  when: ansible_os_family != 'FreeBSD'
+
+- name: Setup the strongswan.conf file from our template
+  template: src=strongswan.conf.j2 dest=/usr/local/etc/strongswan.conf owner=root group=root mode=0644
+  when: ansible_os_family == 'FreeBSD'
+
+- name: Setup the ipsec.conf file from our template
+  template: src=ipsec.conf.j2 dest=/usr/local/etc/ipsec.conf owner=root group=root mode=0644
+  when: ansible_os_family == 'FreeBSD'
+
+- name: Setup the ipsec.secrets file
+  template: src=ipsec.secrets.j2 dest=/usr/local/etc/ipsec.secrets owner=strongswan group=root mode=0600
+  when: ansible_os_family == 'FreeBSD'
+
+- name: Enable strongswan on FreeBSD
+  service: name=strongswan enabled=yes started=no
+  when: ansible_os_family == 'FreeBSD'
+
+- name: create /opt directory
+  file:
+    name: /opt
+    state: directory
+    mode: 0755
+  when: ansible_os_family == 'FreeBSD'
 
 - name: Fetch easy-rsa-ipsec from git
   git: repo=git://github.com/ValdikSS/easy-rsa-ipsec.git version=ed4de10d7ce0726357fb1bb4729f8eb440c06e2b dest="{{ easyrsa_dir }}"
@@ -99,21 +144,21 @@
     ./easyrsa --subject-alt-name='DNS:{{ IP_subject_alt_name }},IP:{{ IP_subject_alt_name }}' build-server-full {{ IP_subject_alt_name }} nopass&&
     touch '{{ easyrsa_dir }}/easyrsa3/pki/server_initialized'
   args:
-    chdir: '{{ easyrsa_dir }}/easyrsa3/'
-    creates: '{{ easyrsa_dir }}/easyrsa3/pki/server_initialized'
+    chdir: "{{ easyrsa_dir }}/easyrsa3/"
+    creates: "{{ easyrsa_dir }}/easyrsa3/pki/server_initialized"
   notify:
     - restart strongswan
 
-- name: Build the client's pair
+- name: "Build the client's pair"
   shell: >
     ./easyrsa build-client-full {{ item }} nopass &&
     touch '{{ easyrsa_dir }}/easyrsa3/pki/{{ item }}_initialized'
   args:
-    chdir: '{{ easyrsa_dir }}/easyrsa3/'
-    creates: '{{ easyrsa_dir }}/easyrsa3/pki/{{ item }}_initialized'
+    chdir: "{{ easyrsa_dir }}/easyrsa3/"
+    creates: "{{ easyrsa_dir }}/easyrsa3/pki/{{ item }}_initialized"
   with_items: "{{ users }}"
 
-- name: Build the client's p12
+- name: "Build the client's p12"
   shell: >
     openssl pkcs12 -in {{ easyrsa_dir }}/easyrsa3//pki/issued/{{ item }}.crt -inkey {{ easyrsa_dir }}/easyrsa3//pki/private/{{ item }}.key -export -name {{ item }} -out /{{ easyrsa_dir }}/easyrsa3//pki/private/{{ item }}.p12 -certfile {{ easyrsa_dir }}/easyrsa3//pki/ca.crt -passout pass:{{ easyrsa_p12_export_password }} &&
     touch '{{ easyrsa_dir }}/easyrsa3/pki/{{ item }}_p12_initialized'
@@ -126,16 +171,37 @@
   copy: remote_src=True src='{{ easyrsa_dir }}/easyrsa3/pki/ca.crt' dest=/etc/ipsec.d/cacerts/ca.crt owner=strongswan group=root mode=0600
   notify:
     - restart strongswan
+  when: ansible_os_family != 'FreeBSD'
 
 - name: Copy the server cert to the strongswan directory
   copy: remote_src=True src='{{ easyrsa_dir }}/easyrsa3/pki/issued/{{ IP_subject_alt_name }}.crt' dest=/etc/ipsec.d/certs/{{ IP_subject_alt_name }}.crt owner=strongswan group=root mode=0600
   notify:
     - restart strongswan
+  when: ansible_os_family != 'FreeBSD'
 
 - name: Copy the server key to the strongswan directory
   copy: remote_src=True src='{{ easyrsa_dir }}/easyrsa3/pki/private/{{ IP_subject_alt_name }}.key' dest=/etc/ipsec.d/private/{{ IP_subject_alt_name }}.key owner=strongswan group=root mode=0600
   notify:
     - restart strongswan
+  when: ansible_os_family != 'FreeBSD'
+
+- name: Copy the CA cert to the strongswan directory
+  copy: remote_src=True src='{{ easyrsa_dir }}/easyrsa3/pki/ca.crt' dest=/usr/local/etc/ipsec.d/cacerts/ca.crt owner=strongswan group=root mode=0600
+  notify:
+    - restart strongswan
+  when: ansible_os_family == 'FreeBSD'
+
+- name: Copy the server cert to the strongswan directory
+  copy: remote_src=True src='{{ easyrsa_dir }}/easyrsa3/pki/issued/{{ IP_subject_alt_name }}.crt' dest=/usr/local/etc/ipsec.d/certs/{{ IP_subject_alt_name }}.crt owner=strongswan group=root mode=0600
+  notify:
+    - restart strongswan
+  when: ansible_os_family == 'FreeBSD'
+
+- name: Copy the server key to the strongswan directory
+  copy: remote_src=True src='{{ easyrsa_dir }}/easyrsa3/pki/private/{{ IP_subject_alt_name }}.key' dest=/usr/local/etc/ipsec.d/private/{{ IP_subject_alt_name }}.key owner=strongswan group=root mode=0600
+  notify:
+    - restart strongswan
+  when: ansible_os_family == 'FreeBSD'
 
 - name: Register p12 PayloadContent
   shell: >
@@ -167,8 +233,20 @@
   file: path="{{ item }}" state=directory mode=0700  owner=strongswan group=root
   with_items:
     - /etc/ipsec.d/private
+  when: ansible_os_family != 'FreeBSD'
+
+- name: Restrict permissions
+  file: path="{{ item }}" state=directory mode=0700  owner=strongswan group=root
+  with_items:
+    - /usr/local/etc/ipsec.d/private
+  when: ansible_os_family == 'FreeBSD'
+
+- name: Start strongswan on FreeBSD
+  service: name=strongswan started=yes
+  when: ansible_os_family == 'FreeBSD'
 
 - name: Fetch server CA certificate
   fetch: src=/{{ easyrsa_dir }}/easyrsa3/pki/ca.crt dest=configs/{{ IP_subject_alt_name }}_ca.crt flat=yes
   notify:
     - congrats
+

@@ -3,7 +3,7 @@
     name: "{{ server_ip }}"
     groups: vpn-host
     ansible_ssh_user: "{{ server_user }}"
-    ansible_python_interpreter: "/usr/bin/python2.7"
+#    ansible_python_interpreter: "/usr/bin/python2.7"
     easyrsa_p12_export_password: "{{ easyrsa_p12_export_password }}"
     cloud_provider: local
 
