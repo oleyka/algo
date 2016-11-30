@@ -1,17 +1,25 @@
-- name: Locate official Ubuntu 16.04 AMI for region
+- name: Check if the encrypted image already exist
   ec2_ami_find:
     aws_access_key: "{{ aws_access_key }}"
     aws_secret_key: "{{ aws_secret_key }}"
-    name: "ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64-server-*"
-    owner:  099720109477
+    name: "ubuntu-xenial-16.04-amd64-server-encrypted"
+    owner:  self
     sort: name
     sort_order: descending
     sort_end: 1
+    state: available
+    ami_tags:
+      Name: "ubuntu-xenial-16.04-amd64-server-encrypted"
+      Encrypted: "true"
     region: "{{ region }}"
-  register: ami_search
+  register: ami_search_encrypted
 
 - set_fact:
-    ami_image: "{{ ami_search.results[0].ami_id }}"
+    ami_encrypted_image: "{{ ami_search_encrypted.results[0].ami_id }}"
+    ami_encrypted_tag: "{{ ami_search_encrypted.results[0].tags.Encrypted }}"
+
+- include: encrypt_image.yml
+  when: ami_encrypted_tag is not defined or (ami_encrypted_tag is defined and ami_encrypted_tag != "true1")
 
 - name: Add ssh public key
   ec2_key:
@@ -56,7 +64,7 @@
     keypair: "VPNKEY"
     group: vpn-secgroup
     instance_type: t2.nano
-    image: "{{ ami_image }}"
+    image: "{{ ami_encrypted_image }}"
     wait: true
     region: "{{ region }}"
     instance_tags:

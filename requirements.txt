@@ -1,6 +1,7 @@
 ansible>=2.1
 dopy==0.3.5
-boto
+boto>=2.5
+awscli>=1.11
 azure>=0.7.1
 apache-libcloud
 six
