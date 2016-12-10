@@ -71,7 +71,7 @@
 
     - name: Build the client's p12
       shell: >
-        openssl pkcs12 -in {{ easyrsa_dir }}/easyrsa3//pki/issued/{{ item }}.crt -inkey {{ easyrsa_dir }}/easyrsa3//pki/private/{{ item }}.key -export -name {{ item }} -out /{{ easyrsa_dir }}/easyrsa3//pki/private/{{ item }}.p12 -certfile {{ easyrsa_dir }}/easyrsa3//pki/ca.crt -passout pass:{{ easyrsa_p12_export_password }} &&
+        openssl pkcs12 -in {{ easyrsa_dir }}/easyrsa3/pki/issued/{{ item }}.crt -inkey {{ easyrsa_dir }}/easyrsa3/pki/private/{{ item }}.key -export -name {{ item }} -out /{{ easyrsa_dir }}/easyrsa3/pki/private/{{ item }}.p12 -certfile {{ easyrsa_dir }}/easyrsa3/pki/ca.crt -passout pass:{{ easyrsa_p12_export_password }} &&
         touch '{{ easyrsa_dir }}/easyrsa3/pki/{{ item }}_p12_initialized'
       args:
         chdir: '{{ easyrsa_dir }}/easyrsa3/'
@@ -85,9 +85,10 @@
         chdir: '{{ easyrsa_dir }}/easyrsa3/'
       register: valid_certs
 
+    # TODO parametrize /etc/ipsec.d (/usr/local/etc/ipsec.d on FBSD)
     - name: Revoke non-existing users
       shell: >
-        ipsec pki --signcrl --cacert {{ easyrsa_dir }}/easyrsa3//pki/ca.crt --cakey {{ easyrsa_dir }}/easyrsa3/pki/private/ca.key --reason superseded --cert {{ easyrsa_dir }}/easyrsa3//pki/issued/{{ item }}.crt > /etc/ipsec.d/crls/{{ item }}.der &&
+        ipsec pki --signcrl --cacert {{ easyrsa_dir }}/easyrsa3/pki/ca.crt --cakey {{ easyrsa_dir }}/easyrsa3/pki/private/ca.key --reason superseded --cert {{ easyrsa_dir }}/easyrsa3/pki/issued/{{ item }}.crt > /etc/ipsec.d/crls/{{ item }}.der &&
         ./easyrsa revoke {{ item }} &&
         ipsec rereadcrls
       args:
@@ -97,32 +98,32 @@
 
     - name: Register p12 PayloadContent
       shell: >
-        cat /{{ easyrsa_dir }}/easyrsa3//pki/private/{{ item }}.p12 | base64
+        cat {{ easyrsa_dir }}/easyrsa3/pki/private/{{ item }}.p12 | base64
       register:  PayloadContent
       with_items: "{{ users }}"
 
     - name: Register CA PayloadContent
       shell: >
-        cat /{{ easyrsa_dir }}/easyrsa3/pki/ca.crt | base64
-      register:  PayloadContentCA
+        cat {{ easyrsa_dir }}/easyrsa3/pki/ca.crt | base64
+      register: PayloadContentCA
 
     - name: Build the mobileconfigs
-      template: src=roles/vpn/templates/mobileconfig.j2 dest=/{{ easyrsa_dir }}/easyrsa3//pki/private/{{ item.0 }}.mobileconfig mode=0600
+      template: src=roles/vpn/templates/mobileconfig.j2 dest={{ easyrsa_dir }}/easyrsa3/pki/private/{{ item.0 }}.mobileconfig mode=0600
       with_together:
         - "{{ users }}"
         - "{{ PayloadContent.results }}"
       no_log: True
 
     - name: Fetch users P12
-      fetch: src=/{{ easyrsa_dir }}/easyrsa3//pki/private/{{ item }}.p12 dest=configs/{{ IP_subject_alt_name }}_{{ item }}.p12 flat=yes
+      fetch: src={{ easyrsa_dir }}/easyrsa3/pki/private/{{ item }}.p12 dest=configs/{{ IP_subject_alt_name }}_{{ item }}.p12 flat=yes
       with_items: "{{ users }}"
 
     - name: Fetch users mobileconfig
-      fetch: src=/{{ easyrsa_dir }}/easyrsa3//pki/private/{{ item }}.mobileconfig dest=configs/{{ IP_subject_alt_name }}_{{ item }}.mobileconfig flat=yes
+      fetch: src={{ easyrsa_dir }}/easyrsa3/pki/private/{{ item }}.mobileconfig dest=configs/{{ IP_subject_alt_name }}_{{ item }}.mobileconfig flat=yes
       with_items: "{{ users }}"
 
     - name: Fetch server CA certificate
-      fetch: src=/{{ easyrsa_dir }}/easyrsa3/pki/ca.crt dest=configs/{{ IP_subject_alt_name }}_ca.crt flat=yes
+      fetch: src={{ easyrsa_dir }}/easyrsa3/pki/ca.crt dest=configs/{{ IP_subject_alt_name }}_ca.crt flat=yes
 
     # SSH
 
@@ -142,5 +143,5 @@
       with_items: "{{ valid_users.stdout_lines }}"
 
     - name: SSH | Fetch users SSH private keys
-      fetch: src='/var/jail/{{ item }}/.ssh/id_rsa' dest=configs/{{ IP_subject_alt_name }}_{{ item }}.ssh.pem flat=yes
+      fetch: src="/var/jail/{{ item }}/.ssh/id_rsa" dest=configs/{{ IP_subject_alt_name }}_{{ item }}.ssh.pem flat=yes
       with_items: "{{ users }}"
