@@ -1,0 +1,46 @@
+---
+
+- name: Install dnsmasq
+  pkg: name=dnsmasq state=present
+
+- name: Enable dnsmasq on reboot
+  lineinfile:
+    dest: /etc/rc.conf.local
+    line: 'dnsmasq_enable="YES"'
+    state: present
+
+- name: Add user dnsmasq
+  user:
+    name: dnsmasq
+    state: present
+    group: nogroup
+    shell: /usr/sbin/nologin
+
+- name: Create dnsmasq directory
+  file: dest=/var/lib/dnsmasq state=directory mode=0755 owner=dnsmasq group=nogroup
+
+- name: Configure dnsmasq
+  template: src=dnsmasq.conf.j2 dest=/usr/local/etc/dnsmasq.conf
+  notify:
+    - restart dnsmasq
+
+- name: Adblock script created
+  template: src=adblock.sh dest=/opt/adblock.sh owner=root group=wheel mode=0755
+
+- name: Adblock script added to cron
+  cron:
+    name: Adblock hosts update
+    minute: 10
+    hour: 2
+    job: /opt/adblock.sh
+    user: dnsmasq
+
+- name: Update adblock hosts
+  shell: >
+    /opt/adblock.sh
+  become: true
+  become_user: dnsmasq
+
+- name: Dnsmasq enabled and started
+  service: name=dnsmasq state=started enabled=yes
+

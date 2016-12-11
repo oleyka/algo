@@ -26,3 +26,14 @@
 
 - name: Enable packet forwarding for IPv6
   sysctl: name=net.inet6.ip6.forwarding value=1
+
+- name: make sure various directories exist
+  file:
+    name: "{{ item }}"
+    state: directory
+    owner: root
+    group: whell
+    mode: 0755
+  with_items:
+    - /opt
+    - /var/lib
