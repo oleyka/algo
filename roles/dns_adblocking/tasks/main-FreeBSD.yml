@@ -1,7 +1,7 @@
 ---
 
 - name: Install dnsmasq
-  pkg: name=dnsmasq state=present
+  pkgng: name=dnsmasq state=present
 
 - name: Enable dnsmasq on reboot
   lineinfile:

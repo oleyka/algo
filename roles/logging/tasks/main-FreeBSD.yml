@@ -1,0 +1,14 @@
+---
+
+# Auditd
+
+# TODO perhaps not touch it either
+- name: Enable auditd
+  lineinfile:
+    dest: /etc/rc.conf.local
+    line: 'auditd_enable="YES"'
+    state: present
+
+- name: Restart auditd service with new settings
+  service: name=auditd enabled=yes state=restarted
+

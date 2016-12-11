@@ -3,3 +3,8 @@
 
 - name: restart auditd
   service: name=auditd state=restarted
+
+# FreeBSD-specific
+
+- name: restart syslogd
+  service: name=syslogd state=restarted

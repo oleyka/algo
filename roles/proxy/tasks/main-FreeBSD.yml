@@ -1,7 +1,7 @@
 ---
 
 - name: Install Privoxy
-  pkg: name=privoxy state=present
+  pkgng: name=privoxy state=present
 
 - name: Configure Privoxy to start on boot
   lineinfile:
