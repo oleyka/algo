@@ -4,3 +4,5 @@ ansible_python_interpreter: "{{ python_binary }}"
 
 python_binary: /usr/local/bin/python
 bash_binary: /usr/local/bin/bash
+
+privoxy_config_dir: /usr/local/etc/privoxy
