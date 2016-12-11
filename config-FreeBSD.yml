@@ -1,3 +1,4 @@
 ---
+ansible_python_interpreter: /usr/local/bin/python
 
-ss_service_dir: /usr/local/etc/strongswan.d
+bash_binary: /usr/local/bin/bash

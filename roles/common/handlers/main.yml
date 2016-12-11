@@ -6,3 +6,6 @@
 
 - name: restart loopback
   shell: ifdown lo:100 && ifup lo:100
+
+- name: reload FreeBSD network configuration
+  shell: /etc/rc.d/netif restart && /etc/rc.d/routing restart

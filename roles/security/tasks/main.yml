@@ -37,7 +37,7 @@
   shell: >
     /usr/bin/find {/usr/local/sbin,/usr/local/bin,/sbin,/bin,/usr/sbin,/usr/bin} -xdev \( -perm -4000 -o -perm -2000 \) -type f | awk '{print "-a always,exit -F path=" $1 " -F perm=x -F auid>=500 -F auid!=4294967295 -k privileged" }'
   args:
-    executable: /bin/bash
+    executable: "{{ bash_binary }}"
   register: privileged_programs
 
 # Core dumps
