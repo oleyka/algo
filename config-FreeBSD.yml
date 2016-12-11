@@ -1,4 +1,6 @@
 ---
-ansible_python_interpreter: /usr/local/bin/python
 
+ansible_python_interpreter: "{{ python_binary }}"
+
+python_binary: /usr/local/bin/python
 bash_binary: /usr/local/bin/bash

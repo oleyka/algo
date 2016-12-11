@@ -1,49 +1,11 @@
 ---
 
-- name: Update package definitions
-  shell: pkg upgrade && pkg autoremove
-  tags:
-    - cloud
-
-- name: Check if reboot is required
-  shell: >
-    if [[ -e /var/run/reboot-required ]]; then echo "required"; else echo "no"; fi
-  args:
-    executable: "{{ bash_binary }}"
-  register: reboot_required
-  tags:
-    - cloud
-
-- name: Reboot
-  shell: sleep 2 && shutdown -r now "Ansible updates triggered"
-  async: 1
-  poll: 0
-  when: reboot_required is defined and reboot_required.stdout == 'required'
-  ignore_errors: true
-  tags:
-    - cloud
-
-- name: Wait for shutdown
-  local_action: wait_for host={{ inventory_hostname }} port=22 state=stopped timeout=120
-  when: reboot_required is defined and reboot_required.stdout == 'required'
-  become: false
-  tags:
-    - cloud
-
-- name: Wait until SSH becomes ready...
-  local_action: wait_for host={{ inventory_hostname }} port=22 state=started timeout=120
-  when: reboot_required is defined and reboot_required.stdout == 'required'
-  become: false
-  tags:
-    - cloud
-
 - name: Disable MOTD on login and SSHD
   replace: dest="{{ item.file }}" regexp="{{ item.regexp }}" replace="{{ item.line }}"
   with_items:
     - { regexp: '^session.*optional.*pam_motd.so.*', line: '# MOTD DISABLED', file: '/etc/pam.d/login' }
     - { regexp: '^session.*optional.*pam_motd.so.*', line: '# MOTD DISABLED', file: '/etc/pam.d/sshd' }
-  tags:
-    - cloud
+  tags: [ 'cloud' ]
 
 - name: Install tools
   pkgng: name="{{ item }}" state=present
@@ -51,32 +13,16 @@
     - git
     - screen
     - bash
-    # - sendmail  # built-in
-    # - uuid-runtime  # uuidgen is built-in
-    # - coreutils  # TODO add what's needed as we go
-    # - iptables-persistent  # on FreeBSD use ipfw
-    # - cgroup-tools  # linux-only
-    # - apparmor-utils  # linux-only
-  tags:
-    - always
 
-- name: Loopback for services configured
+- name: Configure loopback for services
   template: src=rc.conf.local.j2 dest=/etc/rc.conf.local backup=yes
   notify:
     - reload FreeBSD network configuration
-  tags:
-    - always
 
 - meta: flush_handlers
-  tags:
-    - always
 
 - name: Enable packet forwarding for IPv4
   sysctl: name=net.inet.ip.forwarding value=1
-  tags:
-    - always
 
 - name: Enable packet forwarding for IPv6
   sysctl: name=net.inet6.ip6.forwarding value=1
-  tags:
-    - always

@@ -21,10 +21,9 @@
   pre_tasks:
     - name: Include OS-specific vars
       include: "config-{{ ansible_os_family }}.yml"
-      tags: [ 'local' ]
 
     - name: Common pre-tasks
-      include: playbooks/common.yml
+      include: "playbooks/common-{{ ansible_os_family }}.yml"
       tags: [ 'digitalocean', 'ec2', 'gce', 'pre' ]
 
     - name: DigitalOcean pre-tasks

@@ -36,7 +36,6 @@
         hostname: "{{ server_ip }}"
         groupname: vpn-host
         ansible_ssh_user: "{{ server_user }}"
-        ansible_python_interpreter: "/usr/bin/python2.7"
         easyrsa_p12_export_password: "{{ easyrsa_p12_export_password }}"
         ssh_tunneling_enabled: "{{ ssh_tunneling_enabled }}"
         IP_subject: "{{ IP_subject }}"
@@ -55,6 +54,9 @@
   pre_tasks:
     - set_fact:
         IP_subject_alt_name: "{{ IP_subject }}"
+
+    - name: Include OS-specific vars
+      include: "config-{{ ansible_os_family }}.yml"
 
   roles:
     - { role: ssh_tunneling, tags: [ 'ssh_tunneling' ], when: ssh_tunneling_enabled is defined and ssh_tunneling_enabled == "y" }

@@ -68,7 +68,6 @@
     hostname: "{{ item.public_ip }}"
     groupname: vpn-host
     ansible_ssh_user: ubuntu
-    ansible_python_interpreter: "/usr/bin/python2.7"
     easyrsa_p12_export_password: "{{ easyrsa_p12_export_password }}"
     cloud_provider: ec2
     ipv6_support: no

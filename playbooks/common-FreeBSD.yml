@@ -1,0 +1,5 @@
+- name: Install prerequisites
+  raw: sudo env ASSUME_ALWAYS_YES=YES pkg install python
+
+- name: Update package definitions
+  shell: pkg upgrade && pkg autoremove

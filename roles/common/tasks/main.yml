@@ -2,8 +2,6 @@
 
 - name: Gather Facts
   setup:
-  tags:
-    - always
 
 - name: Run tasks (based on OS family)
   include: "main-{{ ansible_os_family }}.yml"

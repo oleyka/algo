@@ -3,3 +3,10 @@
 
 - name: flush routing cache
   shell: echo 1 > /proc/sys/net/ipv4/route/flush
+
+# FreeBSD alternatives
+- name: restart sshd
+  service: name=sshd state=restarted
+
+- name: reload FreeBSD network configuration
+  shell: /etc/rc.d/netif restart && /etc/rc.d/routing restart

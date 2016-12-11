@@ -28,7 +28,6 @@
     name: "{{ do.droplet.ip_address }}"
     groups: vpn-host
     ansible_ssh_user: root
-    ansible_python_interpreter: "/usr/bin/python2.7"
     do_access_token: "{{ do_access_token }}"
     do_droplet_id: "{{ do.droplet.id }}"
     easyrsa_p12_export_password: "{{ easyrsa_p12_export_password }}"
