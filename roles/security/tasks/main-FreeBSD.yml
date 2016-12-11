@@ -39,30 +39,21 @@
 
 # Kernel fixes
 
+# as per: https://calomel.org/freebsd_network_tuning.html
 - name: Disable Source Routed Packet Acceptance
   sysctl: name=net.inet.ip.accept_sourceroute value=0 ignoreerrors=yes sysctl_set=yes
   notify:
     - reload FreeBSD network configuration
 
-# TODO later (https://calomel.org/freebsd_network_tuning.html)
 - name: Disable ICMP Redirect Acceptance
-  sysctl: name="{{item}}" value=0 ignoreerrors=yes sysctl_set=yes
-  with_items:
-    - net.ipv4.conf.all.accept_redirects
-    - net.ipv4.conf.default.accept_redirects
-
-- name: Disable Secure ICMP Redirect Acceptance
-  sysctl: name="{{item}}" value=0 ignoreerrors=yes sysctl_set=yes
-  with_items:
-    - net.ipv4.conf.all.secure_redirects
-    - net.ipv4.conf.default.secure_redirects
+  sysctl: name=net.inet.icmp.drop_redirect value=1 sysctl_set=yes
   notify:
-    - flush routing cache
+    - reload FreeBSD network configuration
 
-- name: Enable Bad Error Message Protection
-  sysctl: name=net.ipv4.icmp_ignore_bogus_error_responses value=1 ignoreerrors=yes sysctl_set=yes
+- name: Do not log redirected ICMP packet attempts
+  sysctl: name=net.inet.icmp.log_redirect value=0 ignoreerrors=yes sysctl_set=yes
   notify:
-    - flush routing cache
+    - reload FreeBSD network configuration
 
 - name: Enable RFC-recommended Source Route Validation
   sysctl: name="{{item}}" value=1 ignoreerrors=yes sysctl_set=yes
@@ -70,10 +61,12 @@
     - net.ipv4.conf.all.rp_filter
     - net.ipv4.conf.default.rp_filter
   notify:
-    - flush routing cache
+    - reload FreeBSD network configuration
 
 - name: Do not send ICMP redirects (we are not a router)
-  sysctl: name=net.ipv4.conf.all.send_redirects value=0
+  sysctl: name=net.inet6.icmp6.rediraccept value=0
+  notify:
+    - reload FreeBSD network configuration
 
 # SSH config
 
